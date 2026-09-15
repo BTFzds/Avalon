@@ -1,22 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Lobby } from './components/Lobby'
 import { GameTable } from './components/GameTable'
 import { RoleReveal } from './components/RoleReveal'
 import { EmojiBurst } from './components/EmojiBar'
 import { Manual } from './components/Manual'
-import { ServerSettings } from './components/ServerSettings'
-import { createGameSocket, type SendFn } from './lib/ws'
-import type { EmojiEvent, GameState, PrivateState, PublicState } from './types'
-
-const STORAGE_KEY = 'avalon-session'
+import { useAvalonOnline } from './hooks/useAvalonOnline'
+import type { PrivateState } from './types'
 
 function visionLines(priv: PrivateState): string[] {
   const v = priv.vision || {}
   const lines: string[] = []
-  if (v.sees_evil?.length) {
-    lines.push(`邪恶（可见）：${v.sees_evil.map((x) => x.name).join('、')}`)
-  }
+  if (v.sees_evil?.length) lines.push(`邪恶（可见）：${v.sees_evil.map((x) => x.name).join('、')}`)
   if (v.sees_merlin_candidates?.length) {
     lines.push(`疑似梅林：${v.sees_merlin_candidates.map((x) => x.name).join('、')}`)
   }
@@ -29,98 +24,22 @@ function visionLines(priv: PrivateState): string[] {
 }
 
 export default function App() {
-  const [connected, setConnected] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [name, setName] = useState(() => localStorage.getItem('avalon-name') || '')
-  const [roomIdInput, setRoomIdInput] = useState('')
-  const [targetPlayers, setTargetPlayers] = useState(7)
-  const [state, setState] = useState<GameState | null>(null)
-  const [emojis, setEmojis] = useState<EmojiEvent[]>([])
-  const [draftTeam, setDraftTeam] = useState<string[]>([])
   const [manualOpen, setManualOpen] = useState(false)
-  const [socketKey, setSocketKey] = useState(0)
-  const sendRef = useRef<SendFn>(() => {})
+  const [copied, setCopied] = useState(false)
+  const g = useAvalonOnline()
 
-  useEffect(() => {
-    localStorage.setItem('avalon-name', name)
-  }, [name])
-
-  useEffect(() => {
-    let alive = true
-    const session = localStorage.getItem(STORAGE_KEY)
-    setConnected(false)
-    setError(null)
-    const sock = createGameSocket({
-      onOpen: () => {
-        if (!alive) return
-        setConnected(true)
-        setError(null)
-        if (session) {
-          try {
-            const { roomId, playerId } = JSON.parse(session)
-            sock.send({ action: 'reconnect', roomId, playerId })
-          } catch {
-            /* ignore */
-          }
-        }
-      },
-      onClose: () => {
-        if (!alive) return
-        setConnected(false)
-      },
-      onError: (m) => {
-        if (!alive) return
-        // Stale room session from last test — drop it instead of blocking UI
-        if (m.includes('无法重连') || m.includes('房间不存在') || m.includes('房间已失效')) {
-          localStorage.removeItem(STORAGE_KEY)
-          setError(null)
-          return
-        }
-        setError(m)
-      },
-      onState: (raw) => {
-        if (!alive) return
-        const data = raw as { public: PublicState; private: PrivateState }
-        setState({ public: data.public, private: data.private })
-        setError(null)
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ roomId: data.public.roomId, playerId: data.private.playerId }),
-        )
-        if (data.public.phase === 'team_propose') {
-          setDraftTeam([])
-        }
-      },
-      onEmoji: (e) => {
-        if (!alive) return
-        setEmojis((prev) => [...prev.slice(-4), e])
-        setTimeout(() => {
-          setEmojis((prev) => prev.slice(1))
-        }, 2200)
-      },
-    })
-    sendRef.current = sock.send
-    return () => {
-      alive = false
-      sock.close()
-    }
-  }, [socketKey])
-
-  const send = useCallback((payload: Record<string, unknown>) => sendRef.current(payload), [])
-
-  const inRoom = !!state
-  const isHost = state?.private.playerId === state?.public.hostId
-  const mePlayer = state?.public.players.find((p) => p.id === state.private.playerId)
+  const inRoom = !!g.game
+  const isHost = g.game?.private.playerId === g.game?.public.hostId
+  const mePlayer = g.game?.public.players.find((p) => p.id === g.game?.private.playerId)
   const waitingAck =
-    state && state.public.phase === 'role_reveal'
-      ? state.public.players.filter((p) => !p.roleAcked).length
+    g.game && g.game.public.phase === 'role_reveal'
+      ? g.game.public.players.filter((p) => !p.roleAcked).length
       : 0
-
-  const inGame = !!(state && state.public.phase !== 'lobby')
+  const inGame = !!(g.game && g.game.public.phase !== 'lobby')
 
   return (
     <div className="bg-grid relative min-h-dvh overflow-x-hidden px-4 pb-10 pt-5">
-      <EmojiBurst events={emojis} />
+      <EmojiBurst events={g.emojis} />
 
       <header className="relative z-10 mx-auto mb-5 max-w-xl text-center">
         {!inGame && (
@@ -132,88 +51,98 @@ export default function App() {
             >
               阿瓦隆
             </motion.h1>
-            <p className="mt-1 text-sm text-ink-500">熟人联机 · 本地可 AI 单人测试</p>
+            <p className="mt-1 text-sm text-ink-500">熟人联机 · Firebase · 发链接即可一起玩</p>
           </>
         )}
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
           <span
             className={`rounded-full px-2.5 py-1 font-semibold ${
-              connected ? 'bg-moss-500/15 text-moss-600' : 'bg-blood-500/15 text-blood-600'
+              g.connected ? 'bg-moss-500/15 text-moss-600' : 'bg-blood-500/15 text-blood-600'
             }`}
           >
-            {connected ? '已连接' : '未连接'}
+            {g.connected ? 'Firebase 已就绪' : '未配置 Firebase'}
           </span>
-          {state && (
+          {g.game && (
             <span className="rounded-full bg-mist-100 px-2.5 py-1 font-bold tracking-wider text-ink-900">
-              {state.public.roomId}
+              {g.game.public.roomId}
             </span>
           )}
           <button type="button" onClick={() => setManualOpen(true)} className="btn-ghost !py-1 !text-xs">
             说明书
           </button>
-          {!connected && (
-            <button type="button" onClick={() => setSocketKey((k) => k + 1)} className="btn-ghost !py-1 !text-xs">
-              重新连接
+          {g.inviteLink && (
+            <button
+              type="button"
+              className="btn-ghost !py-1 !text-xs"
+              onClick={async () => {
+                await g.copyInvite()
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 1500)
+              }}
+            >
+              {copied ? '已复制链接' : '邀请好友'}
             </button>
           )}
         </div>
-        {!inGame && <ServerSettings onSaved={() => setSocketKey((k) => k + 1)} />}
+        {!g.firebaseReady && (
+          <p className="mt-2 text-sm text-blood-600">请按 docs/FIREBASE_SETUP.md 配置环境变量后重启</p>
+        )}
       </header>
 
       <Manual open={manualOpen} onClose={() => setManualOpen(false)} />
 
       <main className="relative z-10">
-        {(!state || state.public.phase === 'lobby') && (
+        {(!g.game || g.game.public.phase === 'lobby') && (
           <Lobby
-            name={name}
-            setName={setName}
-            roomIdInput={roomIdInput}
-            setRoomIdInput={setRoomIdInput}
-            targetPlayers={targetPlayers}
-            setTargetPlayers={setTargetPlayers}
-            connected={connected}
-            inRoom={inRoom && state?.public.phase === 'lobby'}
-            publicState={state?.public ?? null}
+            name={g.name}
+            setName={g.setName}
+            roomIdInput={g.roomIdInput}
+            setRoomIdInput={g.setRoomIdInput}
+            targetPlayers={g.targetPlayers}
+            setTargetPlayers={g.setTargetPlayers}
+            connected={g.connected}
+            inRoom={inRoom && g.game?.public.phase === 'lobby'}
+            publicState={g.game?.public ?? null}
             isHost={!!isHost}
-            error={error}
-            onCreate={() => send({ action: 'create', name, targetPlayers })}
-            onJoin={() => send({ action: 'join', name, roomId: roomIdInput })}
-            onStart={() => send({ action: 'start' })}
-            onConfigurePlayers={(n) => send({ action: 'configure', targetPlayers: n })}
-            onSetCustomRoles={(roles) => send({ action: 'configure', customRoles: roles })}
-            onClearCustom={() => send({ action: 'configure', clearCustom: true })}
-            onFillBots={() => send({ action: 'fill_bots' })}
-            onClearBots={() => send({ action: 'clear_bots' })}
+            error={g.error}
+            onCreate={() => void g.createRoom()}
+            onJoin={() => void g.joinRoom()}
+            onStart={() => void g.send({ type: 'start' })}
+            onConfigurePlayers={(n) => void g.send({ type: 'configure', targetPlayers: n })}
+            onSetCustomRoles={(roles) => void g.send({ type: 'configure', customRoles: roles })}
+            onClearCustom={() => void g.send({ type: 'configure', clearCustom: true })}
+            onFillBots={() => void g.send({ type: 'fill_bots' })}
+            onClearBots={() => void g.send({ type: 'clear_bots' })}
           />
         )}
 
-        {state && state.public.phase !== 'lobby' && state.public.phase !== 'role_reveal' && (
+        {g.game && g.game.public.phase !== 'lobby' && g.game.public.phase !== 'role_reveal' && (
           <GameTable
-            state={state}
-            draftTeam={draftTeam}
-            setDraftTeam={setDraftTeam}
-            onPropose={() => send({ action: 'propose_team', team: draftTeam })}
-            onVote={(approve) => send({ action: 'team_vote', approve })}
-            onQuest={(success) => send({ action: 'quest_card', success })}
-            onAssassinate={(targetId) => send({ action: 'assassinate', targetId })}
-            onRematch={() => send({ action: 'rematch' })}
-            onEmoji={(emoji) => send({ action: 'emoji', emoji })}
+            state={g.game}
+            draftTeam={g.draftTeam}
+            setDraftTeam={g.setDraftTeam}
+            onPropose={() => void g.send({ type: 'propose_team', team: g.draftTeam })}
+            onVote={(approve) => void g.send({ type: 'team_vote', approve })}
+            onQuest={(success) => void g.send({ type: 'quest_card', success })}
+            onAssassinate={(targetId) => void g.send({ type: 'assassinate', targetId })}
+            onRematch={() => void g.send({ type: 'rematch' })}
+            onEmoji={(emoji) => void g.send({ type: 'emoji', emoji })}
           />
         )}
       </main>
 
-      {state && state.public.phase === 'role_reveal' && state.private.role && (
+      {g.game && g.game.public.phase === 'role_reveal' && g.game.private.role && (
         <RoleReveal
-          role={state.private.role}
-          visionText={visionLines(state.private)}
+          role={g.game.private.role}
+          visionText={visionLines(g.game.private)}
           acked={!!mePlayer?.roleAcked}
           waitingCount={Math.max(0, waitingAck - (mePlayer?.roleAcked ? 0 : 1))}
-          onAck={() => send({ action: 'ack_role' })}
+          onAck={() => void g.send({ type: 'ack_role' })}
         />
       )}
 
-      {error && state && (
-        <p className="relative z-10 mt-4 text-center text-sm text-blood-400">{error}</p>
+      {g.error && g.game && g.game.public.phase !== 'lobby' && (
+        <p className="relative z-10 mt-4 text-center text-sm text-blood-600">{g.error}</p>
       )}
     </div>
   )

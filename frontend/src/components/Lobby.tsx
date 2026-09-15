@@ -169,6 +169,7 @@ export function Lobby({
                 清除 AI
               </button>
             </div>
+            <p className="text-center text-xs text-ink-500">点顶栏「邀请好友」复制链接发给同伴</p>
           </div>
         )}
 

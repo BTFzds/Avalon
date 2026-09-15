@@ -2,9 +2,13 @@
 __pycache__/
 *.pyc
 .env
+frontend/.env
 .DS_Store
 frontend/node_modules/
 frontend/dist/
+frontend/deps/
+frontend/*.tgz
 *.log
 awesome-cursorrules-main/
 backend/.venv/
+
