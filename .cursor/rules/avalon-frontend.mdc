@@ -1,0 +1,14 @@
+---
+description: Avalon 前端（React/TS/Vite）约定
+globs: "**/*.{ts,tsx,css}"
+alwaysApply: false
+---
+
+# 前端约定
+
+- 函数组件 + hooks；逻辑抽到 hooks，组件保持阶段 UI 清晰。
+- TypeScript strict；避免 `any`；用接口描述 props 与 WS 消息。
+- 目录用 kebab-case；组件 named export；文件结构：组件 → 子组件 → helpers → types。
+- Tailwind 做响应式；桌面与手机都能完成：进房、投票、出牌、表情。
+- 只渲染服务端下发的公开/私有视图；不在本地「猜」隐藏身份。
+- 连接态要可见：连接中 / 重连 / 等待他人提交；错误信息对玩家可读。

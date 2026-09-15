@@ -1,0 +1,2 @@
+"""Avalon multiplayer game server."""
+
