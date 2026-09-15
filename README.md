@@ -25,19 +25,32 @@ npm run dev
 
 浏览器打开 http://127.0.0.1:5173 （开发服务器已把 `/ws` 代理到后端）。
 
-## 公网部署说明
+## 公网部署说明（Netlify 网页 + 后端）
 
-当前会话未检测到可用的 Netlify MCP 工具。可用手动方式：
+Netlify **只能托管前端**，游戏联机依赖 WebSocket 后端。
 
-1. **前端 → Netlify**  
-   - 根目录选 `frontend`，或仓库已含 `frontend/netlify.toml`  
-   - 构建：`npm run build`，发布目录：`dist`  
-   - 环境变量：`VITE_WS_URL=wss://你的后端域名/ws`（必须在 build 时注入）
+### 1. 修复并部署前端到 Netlify
+仓库已修正 `netlify.toml`（原先 `frontend/netlify.toml` 非法 TOML 会导致 “Reading and parsing configuration files” 失败）。推送 `main` 后应自动重新部署。
 
-2. **后端 → 支持 WebSocket 的宿主**（Render / Railway / Fly.io / 自有 VPS）  
-   - Netlify 只能托管静态前端，**不能**跑 FastAPI WebSocket  
-   - 启动：`uvicorn app.main:app --host 0.0.0.0 --port $PORT`  
-   - 打开 CORS（已默认 `*`）
+站点示例：`https://avalononline.netlify.app`（以你控制台域名为准）
+
+### 2. 本机跑后端并开隧道（临时公网）
+```bash
+cd backend
+.\.venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+另开终端：
+```bash
+cloudflared tunnel --protocol http2 --url http://127.0.0.1:8000
+```
+记下输出的 `https://xxxx.trycloudflare.com`。
+
+### 3. 在 Netlify 站点里连接后端
+打开 Netlify 站点 → 点 **「服务器」** → 填入：
+`wss://xxxx.trycloudflare.com/ws` → **保存并重连**。  
+看到「已连接」后即可开房 / AI 单人游玩。
+
+> 隧道关掉后公网就断了；长期上线请把后端放到 Render / Railway / VPS，再把该 `wss://.../ws` 填进站点。
 
 ## 玩法要点
 
