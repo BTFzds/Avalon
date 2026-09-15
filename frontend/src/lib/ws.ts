@@ -1,6 +1,25 @@
+const LS_WS = 'avalon-ws-url'
+
+export function getStoredWsUrl(): string {
+  return localStorage.getItem(LS_WS) || ''
+}
+
+export function setStoredWsUrl(url: string): void {
+  const trimmed = url.trim()
+  if (trimmed) localStorage.setItem(LS_WS, trimmed)
+  else localStorage.removeItem(LS_WS)
+}
+
 export function wsUrl(): string {
+  const stored = getStoredWsUrl()
+  if (stored) return stored
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  // Same-origin proxy (local Vite) or custom host
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return `${proto}//${window.location.host}/ws`
+  }
+  // Netlify / static host default: try same host (only works if you reverse-proxy /ws)
   return `${proto}//${window.location.host}/ws`
 }
 

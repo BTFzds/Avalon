@@ -5,6 +5,7 @@ import { GameTable } from './components/GameTable'
 import { RoleReveal } from './components/RoleReveal'
 import { EmojiBurst } from './components/EmojiBar'
 import { Manual } from './components/Manual'
+import { ServerSettings } from './components/ServerSettings'
 import { createGameSocket, type SendFn } from './lib/ws'
 import type { EmojiEvent, GameState, PrivateState, PublicState } from './types'
 
@@ -60,6 +61,7 @@ export default function App() {
   const [emojis, setEmojis] = useState<EmojiEvent[]>([])
   const [draftTeam, setDraftTeam] = useState<string[]>([])
   const [manualOpen, setManualOpen] = useState(false)
+  const [socketKey, setSocketKey] = useState(0)
   const sendRef = useRef<SendFn>(() => {})
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export default function App() {
 
   useEffect(() => {
     const session = localStorage.getItem(STORAGE_KEY)
+    setConnected(false)
     const sock = createGameSocket({
       onOpen: () => {
         setConnected(true)
@@ -103,7 +106,7 @@ export default function App() {
     })
     sendRef.current = sock.send
     return () => sock.close()
-  }, [])
+  }, [socketKey])
 
   const send = useCallback((payload: Record<string, unknown>) => sendRef.current(payload), [])
 
@@ -163,6 +166,7 @@ export default function App() {
             说明书
           </button>
         </div>
+        <ServerSettings onSaved={() => setSocketKey((k) => k + 1)} />
       </header>
 
       <Manual open={manualOpen} onClose={() => setManualOpen(false)} />
