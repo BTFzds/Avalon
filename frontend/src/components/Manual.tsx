@@ -76,7 +76,7 @@ export function Manual({ open, onClose }: { open: boolean; onClose: () => void }
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-night-950/80 p-3 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-ink-900/40 p-3 backdrop-blur-sm sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -88,24 +88,24 @@ export function Manual({ open, onClose }: { open: boolean; onClose: () => void }
             exit={{ y: 24, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 160, damping: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-gold-400/30 bg-night-900 p-5 shadow-glow sm:p-7"
+            className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-ink-900/10 bg-white p-5 shadow-card sm:p-7"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs tracking-[0.35em] text-gold-300/70">CODEX</p>
-                <h2 className="font-display text-2xl text-gold-300">阿瓦隆说明书</h2>
+                <p className="text-xs tracking-[0.35em] text-ink-500">CODEX</p>
+                <h2 className="font-display text-2xl text-gold-600">阿瓦隆说明书</h2>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-white/15 px-3 py-1 text-sm text-parchment/70 hover:border-gold-400/40"
+                className="btn-ghost !text-sm"
               >
                 关闭
               </button>
             </div>
 
-            <section className="mb-6 space-y-2 text-sm leading-relaxed text-parchment/85">
-              <h3 className="font-display text-lg text-gold-300">胜负目标</h3>
+            <section className="mb-6 space-y-2 text-sm leading-relaxed text-ink-700">
+              <h3 className="font-display text-lg text-ink-900">胜负目标</h3>
               <p>
                 <span className="text-moss-400">正义</span>
                 ：完成 <strong>3</strong> 次任务成功，且在最终刺杀中保住梅林。

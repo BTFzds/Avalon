@@ -10,16 +10,24 @@ export function setStoredWsUrl(url: string): void {
   else localStorage.removeItem(LS_WS)
 }
 
+export function isLocalHost(): boolean {
+  const h = window.location.hostname
+  return h === 'localhost' || h === '127.0.0.1'
+}
+
+/**
+ * Local: talk to FastAPI directly (avoid flaky Vite WS proxy).
+ * Netlify / remote: use stored tunnel URL or env.
+ */
 export function wsUrl(): string {
+  if (isLocalHost()) {
+    // Prefer explicit local backend; ignore leftover Netlify/tunnel settings
+    return 'ws://127.0.0.1:8000/ws'
+  }
   const stored = getStoredWsUrl()
   if (stored) return stored
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  // Same-origin proxy (local Vite) or custom host
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return `${proto}//${window.location.host}/ws`
-  }
-  // Netlify / static host default: try same host (only works if you reverse-proxy /ws)
   return `${proto}//${window.location.host}/ws`
 }
 
@@ -32,9 +40,31 @@ export function createGameSocket(handlers: {
   onOpen?: () => void
   onClose?: () => void
 }): { send: SendFn; close: () => void } {
-  const socket = new WebSocket(wsUrl())
+  if (isLocalHost() && getStoredWsUrl()) {
+    setStoredWsUrl('')
+  }
 
-  socket.onopen = () => handlers.onOpen?.()
+  const url = wsUrl()
+  let socket: WebSocket
+  let opened = false
+  try {
+    socket = new WebSocket(url)
+  } catch {
+    handlers.onError(`无法创建连接：${url}`)
+    handlers.onClose?.()
+    return { send: () => undefined, close: () => undefined }
+  }
+
+  socket.onopen = () => {
+    opened = true
+    handlers.onOpen?.()
+  }
+  socket.onerror = () => {
+    // Browsers often fire error+close together; only surface if never opened
+    if (!opened) {
+      handlers.onError(`连接失败，请确认后端已在 8000 端口运行（当前：${url}）`)
+    }
+  }
   socket.onclose = () => handlers.onClose?.()
   socket.onmessage = (ev) => {
     try {
@@ -53,6 +83,18 @@ export function createGameSocket(handlers: {
         socket.send(JSON.stringify(payload))
       }
     },
-    close: () => socket.close(),
+    close: () => {
+      try {
+        socket.onclose = null
+        socket.onerror = null
+        socket.onmessage = null
+        socket.onopen = null
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close()
+        }
+      } catch {
+        /* ignore */
+      }
+    },
   }
 }

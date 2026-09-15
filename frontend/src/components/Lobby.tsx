@@ -61,46 +61,46 @@ export function Lobby({
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-auto w-full max-w-lg space-y-5"
+        className="mx-auto w-full max-w-lg space-y-4"
       >
-        <div className="rounded-3xl border border-gold-400/25 bg-night-900/80 p-6 shadow-glow backdrop-blur">
-          <p className="text-xs tracking-[0.3em] text-gold-300/70">ROOM</p>
-          <h2 className="font-display text-4xl tracking-widest text-gold-300">{publicState.roomId}</h2>
-          <p className="mt-2 text-sm text-parchment/70">
-            {publicState.players.length}/{publicState.targetPlayers} 人 · 好{' '}
-            {publicState.goodEvil[0]}/{publicState.goodEvil[1]}
+        <div className="panel p-5 text-center">
+          <p className="text-sm font-semibold text-ink-500">房间号</p>
+          <h2 className="font-display text-4xl tracking-[0.2em] text-gold-600">{publicState.roomId}</h2>
+          <p className="mt-1 text-sm text-ink-700">
+            {publicState.players.length}/{publicState.targetPlayers} 人 · 好 {publicState.goodEvil[0]}/
+            {publicState.goodEvil[1]}
           </p>
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 space-y-2 text-left">
             {publicState.players.map((p) => (
               <li
                 key={p.id}
-                className="flex items-center justify-between rounded-xl border border-white/5 bg-night-950/50 px-3 py-2"
+                className="flex items-center justify-between rounded-xl bg-mist-50 px-3 py-2 text-sm"
               >
-                <span>
+                <span className="font-medium text-ink-900">
                   {p.name}
                   {p.isHost ? ' · 房主' : ''}
                   {p.isAi ? ' · AI' : ''}
                 </span>
-                <span className={`h-2 w-2 rounded-full ${p.connected ? 'bg-moss-400' : 'bg-blood-400'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${p.connected ? 'bg-moss-500' : 'bg-blood-500'}`} />
               </li>
             ))}
           </ul>
         </div>
 
         {isHost && (
-          <div className="rounded-3xl border border-white/10 bg-night-900/70 p-5 space-y-4">
+          <div className="panel space-y-4 p-5">
             <div>
-              <label className="text-xs tracking-widest text-parchment/60">目标人数</label>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <p className="mb-2 text-sm font-semibold text-ink-500">人数</p>
+              <div className="flex flex-wrap gap-2">
                 {[5, 6, 7, 8, 9, 10].map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => onConfigurePlayers(n)}
-                    className={`rounded-full px-3 py-1 text-sm ${
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
                       publicState.targetPlayers === n
-                        ? 'bg-gold-400 text-night-950'
-                        : 'border border-white/15 bg-night-800'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-mist-100 text-ink-700'
                     }`}
                   >
                     {n}
@@ -109,17 +109,17 @@ export function Lobby({
               </div>
             </div>
             <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs tracking-widest text-parchment/60">
-                  角色配置 {publicState.usingCustomRoles ? '(自定义)' : '(推荐)'}
-                </label>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink-500">
+                  角色 {publicState.usingCustomRoles ? '(自定义)' : '(推荐)'}
+                </p>
                 {publicState.usingCustomRoles && (
-                  <button type="button" className="text-xs text-gold-300" onClick={onClearCustom}>
+                  <button type="button" className="text-xs font-semibold text-gold-600" onClick={onClearCustom}>
                     恢复推荐
                   </button>
                 )}
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {ALL_ROLES.map((role) => {
                   const count = counts[role] || 0
                   return (
@@ -131,20 +131,18 @@ export function Lobby({
                         if (count > 0) {
                           const idx = next.indexOf(role)
                           if (idx >= 0) next.splice(idx, 1)
-                        } else {
-                          next.push(role)
-                        }
+                        } else next.push(role)
                         onSetCustomRoles(next)
                       }}
-                      className={`rounded-full border px-3 py-1 text-xs ${
+                      className={`rounded-lg border px-2.5 py-1 text-xs font-semibold ${
                         count
-                          ? 'border-gold-400/50 bg-gold-400/15 text-gold-300'
-                          : 'border-white/10 text-parchment/50'
+                          ? 'border-gold-500 bg-gold-500/10 text-gold-600'
+                          : 'border-ink-900/10 text-ink-500'
                       }`}
                     >
                       {ROLE_META[role].label}
-                      {count > 1 ? ` ×${count}` : count === 1 ? '' : ''}
-                      {role === 'servant' || role === 'minion' ? (
+                      {count > 1 ? `×${count}` : ''}
+                      {(role === 'servant' || role === 'minion') && (
                         <span
                           className="ml-1"
                           onClick={(e) => {
@@ -154,49 +152,27 @@ export function Lobby({
                         >
                           +
                         </span>
-                      ) : null}
+                      )}
                     </button>
                   )
                 })}
               </div>
-              <p className="mt-2 text-[11px] text-parchment/45">
-                点选切换；忠臣/爪牙可点 + 追加。须满足好/坏人数且含梅林与刺客。
-              </p>
             </div>
-            <button
-              type="button"
-              disabled={!full}
-              onClick={onStart}
-              className="w-full rounded-full bg-gradient-to-r from-moss-700 to-moss-400 py-3 font-semibold text-night-950 disabled:opacity-40"
-            >
-              {full ? '开始游戏' : `等待人齐 (${publicState.players.length}/${publicState.targetPlayers})`}
+            <button type="button" disabled={!full} onClick={onStart} className="btn-primary w-full">
+              {full ? '开始游戏' : `等人齐 ${publicState.players.length}/${publicState.targetPlayers}`}
             </button>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={full}
-                onClick={onFillBots}
-                className="flex-1 rounded-full border border-gold-400/40 py-2 text-sm text-gold-300 disabled:opacity-40"
-              >
-                AI 填满空位
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" disabled={full} onClick={onFillBots} className="btn-ghost">
+                AI 填满
               </button>
-              <button
-                type="button"
-                onClick={onClearBots}
-                className="rounded-full border border-white/15 px-4 py-2 text-sm text-parchment/60"
-              >
+              <button type="button" onClick={onClearBots} className="btn-ghost">
                 清除 AI
               </button>
             </div>
-            <p className="text-center text-[11px] text-parchment/40">
-              单人测试：设好人数后点「AI 填满空位」再开始
-            </p>
           </div>
         )}
 
-        {!isHost && (
-          <p className="text-center text-sm text-parchment/60">等待房主开始…</p>
-        )}
+        {!isHost && <p className="text-center text-sm text-ink-500">等待房主开始…</p>}
       </motion.div>
     )
   }
@@ -205,25 +181,25 @@ export function Lobby({
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto w-full max-w-md space-y-4 rounded-3xl border border-gold-400/20 bg-night-900/75 p-6 shadow-glow backdrop-blur"
+      className="panel mx-auto w-full max-w-md space-y-4 p-5"
     >
-      <label className="block text-xs tracking-widest text-parchment/60">昵称</label>
+      <label className="block text-sm font-semibold text-ink-500">昵称</label>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full rounded-xl border border-white/10 bg-night-950 px-4 py-3 outline-none focus:border-gold-400/50"
+        className="w-full rounded-xl border border-ink-900/15 bg-mist-50 px-4 py-3 text-ink-900 outline-none focus:border-gold-500"
         placeholder="圆桌骑士"
         maxLength={12}
       />
-      <label className="block text-xs tracking-widest text-parchment/60">开房人数</label>
+      <label className="block text-sm font-semibold text-ink-500">开房人数</label>
       <div className="flex flex-wrap gap-2">
         {[5, 6, 7, 8, 9, 10].map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => setTargetPlayers(n)}
-            className={`rounded-full px-3 py-1 text-sm ${
-              targetPlayers === n ? 'bg-gold-400 text-night-950' : 'border border-white/15'
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+              targetPlayers === n ? 'bg-gold-500 text-white' : 'bg-mist-100 text-ink-700'
             }`}
           >
             {n}
@@ -234,15 +210,15 @@ export function Lobby({
         type="button"
         disabled={!connected || !name.trim()}
         onClick={onCreate}
-        className="w-full rounded-full bg-gradient-to-r from-gold-500 to-gold-300 py-3 font-semibold text-night-950 disabled:opacity-40"
+        className="btn-primary w-full"
       >
-        创建房间
+        创建房间（自动生成房间码）
       </button>
-      <div className="relative py-2 text-center text-xs text-parchment/40">或加入</div>
+      <p className="text-center text-xs text-ink-500">或加入已有房间</p>
       <input
         value={roomIdInput}
         onChange={(e) => setRoomIdInput(e.target.value.toUpperCase())}
-        className="w-full rounded-xl border border-white/10 bg-night-950 px-4 py-3 tracking-[0.3em] outline-none focus:border-gold-400/50"
+        className="w-full rounded-xl border border-ink-900/15 bg-mist-50 px-4 py-3 tracking-[0.25em] text-ink-900 outline-none focus:border-gold-500"
         placeholder="房间 ID"
         maxLength={6}
       />
@@ -250,12 +226,14 @@ export function Lobby({
         type="button"
         disabled={!connected || !name.trim() || roomIdInput.length < 4}
         onClick={onJoin}
-        className="w-full rounded-full border border-gold-400/40 py-3 font-semibold text-gold-300 disabled:opacity-40"
+        className="btn-ghost w-full py-3"
       >
         加入房间
       </button>
-      {!connected && <p className="text-center text-sm text-blood-400">连接服务器中…</p>}
-      {error && <p className="text-center text-sm text-blood-400">{error}</p>}
+      {!connected && (
+        <p className="text-center text-sm text-blood-600">未连上服务器，请确认后端在 8000 端口</p>
+      )}
+      {error && <p className="text-center text-sm text-blood-600">{error}</p>}
     </motion.div>
   )
 }

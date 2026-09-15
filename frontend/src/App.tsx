@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Lobby } from './components/Lobby'
 import { GameTable } from './components/GameTable'
@@ -10,29 +10,6 @@ import { createGameSocket, type SendFn } from './lib/ws'
 import type { EmojiEvent, GameState, PrivateState, PublicState } from './types'
 
 const STORAGE_KEY = 'avalon-session'
-
-function Particles() {
-  const dots = useMemo(
-    () =>
-      Array.from({ length: 18 }, (_, i) => ({
-        left: `${(i * 17) % 100}%`,
-        delay: `${(i % 9) * 0.7}s`,
-        duration: `${10 + (i % 5)}s`,
-      })),
-    [],
-  )
-  return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden">
-      {dots.map((d, i) => (
-        <span
-          key={i}
-          className="particle"
-          style={{ left: d.left, animationDelay: d.delay, animationDuration: d.duration }}
-        />
-      ))}
-    </div>
-  )
-}
 
 function visionLines(priv: PrivateState): string[] {
   const v = priv.vision || {}
@@ -69,11 +46,15 @@ export default function App() {
   }, [name])
 
   useEffect(() => {
+    let alive = true
     const session = localStorage.getItem(STORAGE_KEY)
     setConnected(false)
+    setError(null)
     const sock = createGameSocket({
       onOpen: () => {
+        if (!alive) return
         setConnected(true)
+        setError(null)
         if (session) {
           try {
             const { roomId, playerId } = JSON.parse(session)
@@ -83,9 +64,22 @@ export default function App() {
           }
         }
       },
-      onClose: () => setConnected(false),
-      onError: (m) => setError(m),
+      onClose: () => {
+        if (!alive) return
+        setConnected(false)
+      },
+      onError: (m) => {
+        if (!alive) return
+        // Stale room session from last test — drop it instead of blocking UI
+        if (m.includes('无法重连') || m.includes('房间不存在') || m.includes('房间已失效')) {
+          localStorage.removeItem(STORAGE_KEY)
+          setError(null)
+          return
+        }
+        setError(m)
+      },
       onState: (raw) => {
+        if (!alive) return
         const data = raw as { public: PublicState; private: PrivateState }
         setState({ public: data.public, private: data.private })
         setError(null)
@@ -98,6 +92,7 @@ export default function App() {
         }
       },
       onEmoji: (e) => {
+        if (!alive) return
         setEmojis((prev) => [...prev.slice(-4), e])
         setTimeout(() => {
           setEmojis((prev) => prev.slice(1))
@@ -105,7 +100,10 @@ export default function App() {
       },
     })
     sendRef.current = sock.send
-    return () => sock.close()
+    return () => {
+      alive = false
+      sock.close()
+    }
   }, [socketKey])
 
   const send = useCallback((payload: Record<string, unknown>) => sendRef.current(payload), [])
@@ -118,55 +116,48 @@ export default function App() {
       ? state.public.players.filter((p) => !p.roleAcked).length
       : 0
 
+  const inGame = !!(state && state.public.phase !== 'lobby')
+
   return (
-    <div className="bg-grid relative min-h-dvh overflow-x-hidden px-4 pb-10 pt-8">
-      <Particles />
+    <div className="bg-grid relative min-h-dvh overflow-x-hidden px-4 pb-10 pt-5">
       <EmojiBurst events={emojis} />
 
-      <header className="relative z-10 mx-auto mb-8 max-w-3xl text-center">
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-xs tracking-[0.45em] text-gold-300/70"
-        >
-          THE RESISTANCE
-        </motion.p>
-        <motion.h1
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="font-display text-5xl font-bold tracking-wide text-gold-300 sm:text-6xl"
-        >
-          阿瓦隆
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
-          className="mt-2 text-sm text-parchment/65"
-        >
-          忠诚与暗影交织的圆桌对决 · 熟人联机
-        </motion.p>
-        <div className="mt-3 flex justify-center gap-2 text-[11px]">
+      <header className="relative z-10 mx-auto mb-5 max-w-xl text-center">
+        {!inGame && (
+          <>
+            <motion.h1
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="font-display text-4xl font-bold text-gold-600 sm:text-5xl"
+            >
+              阿瓦隆
+            </motion.h1>
+            <p className="mt-1 text-sm text-ink-500">熟人联机 · 本地可 AI 单人测试</p>
+          </>
+        )}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
           <span
-            className={`rounded-full px-2 py-0.5 ${connected ? 'bg-moss-700/40 text-moss-400' : 'bg-blood-700/40 text-blood-400'}`}
+            className={`rounded-full px-2.5 py-1 font-semibold ${
+              connected ? 'bg-moss-500/15 text-moss-600' : 'bg-blood-500/15 text-blood-600'
+            }`}
           >
             {connected ? '已连接' : '未连接'}
           </span>
           {state && (
-            <span className="rounded-full bg-night-800 px-2 py-0.5 text-parchment/60">
+            <span className="rounded-full bg-mist-100 px-2.5 py-1 font-bold tracking-wider text-ink-900">
               {state.public.roomId}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => setManualOpen(true)}
-            className="rounded-full border border-gold-400/40 px-2 py-0.5 text-gold-300 hover:bg-gold-400/10"
-          >
+          <button type="button" onClick={() => setManualOpen(true)} className="btn-ghost !py-1 !text-xs">
             说明书
           </button>
+          {!connected && (
+            <button type="button" onClick={() => setSocketKey((k) => k + 1)} className="btn-ghost !py-1 !text-xs">
+              重新连接
+            </button>
+          )}
         </div>
-        <ServerSettings onSaved={() => setSocketKey((k) => k + 1)} />
+        {!inGame && <ServerSettings onSaved={() => setSocketKey((k) => k + 1)} />}
       </header>
 
       <Manual open={manualOpen} onClose={() => setManualOpen(false)} />
